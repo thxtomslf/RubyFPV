@@ -31,6 +31,9 @@
 */
 
 #include <fcntl.h>        // serialport
+#define termios asmtermios
+#include <asm/termios.h>
+#undef  termios
 #include <termios.h>      // serialport
 #include <ctype.h>
 #include <stdio.h>
@@ -46,7 +49,7 @@
 #include "hw_procs.h"
 #include "../common/string_utils.h"
 
-int s_OptionsSerialBaudRatesC[] = { 1200, 2400, 4800, 9600, 19200, 38400, 57600, 115200 };
+int s_OptionsSerialBaudRatesC[] = { 1200, 2400, 4800, 9600, 19200, 38400, 57600, 115200, 420000 };
 
 int s_iHardwareSerialPortsWasInitialized = 0;
 
@@ -139,6 +142,29 @@ void _hardware_enumerate_serial_ports()
    }
 }
 
+// Set arbitrary baud rate using BOTHER flag (from microcom)
+static int hardware_serial_set_custom_baudrate(int fd, const char* device, unsigned int speed)
+{
+    struct termios2 t;
+    int ret;
+
+    ret = ioctl(fd, TCGETS2, &t);
+    if (ret) {
+        log_softerror_and_alarm("Can't TCGETS2 for %s", device);
+        return ret;
+    }
+
+    t.c_ospeed = t.c_ispeed = speed;
+    t.c_cflag &= ~CBAUD;
+    t.c_cflag |= BOTHER;
+
+    ret = ioctl(fd, TCSETS2, &t);
+    if (ret) {
+        log_softerror_and_alarm("Can't TCSETS2 for %s", device);
+    }
+    return ret;
+}
+
 int hardware_init_serial_ports()
 {
    if ( s_iHardwareSerialPortsWasInitialized )
@@ -189,7 +215,6 @@ int hardware_init_serial_ports()
 }
 
 // Returns the number of hardware serial ports that had settings restored
-
 int hardware_reload_serial_ports_settings()
 {
    if ( ! s_iHardwareSerialPortsWasInitialized )
@@ -267,7 +292,6 @@ int hardware_reload_serial_ports_settings()
    }
 
    // Copy settings from the loaded serial ports to the detected serial ports
-
    int iCountMatched = 0;
    int iCountUpdated = 0;
    for( int i=0; i<s_iCountHardwareSerialPorts; i++ )
@@ -307,7 +331,6 @@ void hardware_serial_save_configuration()
       return;
 
    // First copy current hw serial ports settings to the ones to be saved
-
    for( int i=0; i<s_iCountHardwareSerialPorts; i++ )
    {
       for( int k=0; k<s_iCountLoadedSerialPorts; k++ )
@@ -402,7 +425,6 @@ int hardware_configure_serial(const char* szDevName, long baudRate)
 {
    if ( ! s_iHardwareSerialPortsWasInitialized )
       hardware_init_serial_ports();
-   return 1;
 
    if ( access(szDevName, R_OK ) == -1 )
    {
@@ -410,10 +432,6 @@ int hardware_configure_serial(const char* szDevName, long baudRate)
       return -1;    
    }
 
-   //char szBuff[1024];
-   //sprintf(szBuff, "stty -F %s -icrnl -ocrnl -imaxbel -opost -isig -icanon -echo -echoe -ixoff -ixon %ld", szDevName, baudRate);
-   //execute_bash_command(szBuff, NULL);
-   
    int fPort = open (szDevName, O_RDWR | O_NOCTTY | O_NDELAY );
    if ( -1 == fPort )
    {
@@ -425,17 +443,30 @@ int hardware_configure_serial(const char* szDevName, long baudRate)
    tcgetattr(fPort, &options);
    cfmakeraw(&options);
 
-   switch(baudRate)
+   // For standard baud rates, use the traditional method
+   if (baudRate != 420000) 
    {
-      case 1200:  cfsetospeed(&options, B1200); break;
-      case 2400:  cfsetospeed(&options, B2400); break;
-      case 4800:  cfsetospeed(&options, B4800); break;
-      case 9600:  cfsetospeed(&options, B9600); break;
-      case 19200: cfsetospeed(&options, B19200); break;
-      case 38400: cfsetospeed(&options, B38400); break;
-      case 57600: cfsetospeed(&options, B57600); break;
-      case 115200: cfsetospeed(&options, B115200); break;
-      default:    cfsetospeed(&options, B57600); break;
+       switch(baudRate)
+       {
+          case 1200:  cfsetospeed(&options, B1200); break;
+          case 2400:  cfsetospeed(&options, B2400); break;
+          case 4800:  cfsetospeed(&options, B4800); break;
+          case 9600:  cfsetospeed(&options, B9600); break;
+          case 19200: cfsetospeed(&options, B19200); break;
+          case 38400: cfsetospeed(&options, B38400); break;
+          case 57600: cfsetospeed(&options, B57600); break;
+          case 115200: cfsetospeed(&options, B115200); break;
+          default:    cfsetospeed(&options, B57600); break;
+       }
+   }
+   else
+   {
+       // For non-standard baud rates (like 420000), use the custom method
+       if (hardware_serial_set_custom_baudrate(fPort, szDevName, baudRate) != 0)
+       {
+           close(fPort);
+           return 0;
+       }
    }
 
    options.c_cflag &= ~CSIZE;
@@ -449,16 +480,12 @@ int hardware_configure_serial(const char* szDevName, long baudRate)
    options.c_iflag = IGNBRK;
    options.c_iflag &= ~(IXON | IXOFF ); // No software handshake
    options.c_iflag |= IXANY;
-   //options.c_cc[VMIN] = 0;
-   //options.c_cc[VTIME] = 5;
-   
+
    tcsetattr(fPort, TCSANOW, &options); //write options 
    close(fPort);
    
-
    log_line("Configured serial port %s to baudrate %ld bps.", szDevName, baudRate);
    return 1;
-
 }
 
 int hardware_open_serial_port(const char* szDevName, long baudRate)
@@ -477,13 +504,7 @@ int hardware_open_serial_port(const char* szDevName, long baudRate)
       return -1;    
    }
 
-   //int fPort = open (szDevName, O_RDWR | O_NOCTTY | O_NONBLOCK );
    int fPort = open (szDevName, O_RDWR | O_NOCTTY | O_NDELAY );
-   //int fPort = open ("/dev/serial0", O_RDONLY | O_NOCTTY | O_NDELAY );
-
-   // working:
-   //int fPort = open (szDevName, O_RDWR | O_NOCTTY | O_NDELAY );
-
    if ( -1 == fPort )
    {
       log_softerror_and_alarm("Failed to open serial port %s", szDevName);
@@ -495,41 +516,29 @@ int hardware_open_serial_port(const char* szDevName, long baudRate)
    cfmakeraw(&options);
 
    int iUsedDefaultRate = 0;
-   switch(baudRate)
+   if (baudRate != 420000)
    {
-      case 1200:  cfsetospeed(&options, B1200); break;
-      case 2400:  cfsetospeed(&options, B2400); break;
-      case 4800:  cfsetospeed(&options, B4800); break;
-      case 9600:  cfsetospeed(&options, B9600); break;
-      case 19200: cfsetospeed(&options, B19200); break;
-      case 38400: cfsetospeed(&options, B38400); break;
-      case 57600: cfsetospeed(&options, B57600); break;
-      case 115200: cfsetospeed(&options, B115200); break;
-      default:    cfsetospeed(&options, B57600); iUsedDefaultRate = 1; break;
+       switch(baudRate)
+       {
+          case 1200:  cfsetospeed(&options, B1200); break;
+          case 2400:  cfsetospeed(&options, B2400); break;
+          case 4800:  cfsetospeed(&options, B4800); break;
+          case 9600:  cfsetospeed(&options, B9600); break;
+          case 19200: cfsetospeed(&options, B19200); break;
+          case 38400: cfsetospeed(&options, B38400); break;
+          case 57600: cfsetospeed(&options, B57600); break;
+          case 115200: cfsetospeed(&options, B115200); break;
+          default:    cfsetospeed(&options, B57600); iUsedDefaultRate = 1; break;
+       }
    }
-
-   /*
-   options.c_cflag &= ~CSIZE;
-   options.c_cflag |= CS8; // Set 8 data bits
-   options.c_cflag &= ~PARENB; // Set no parity
-   options.c_cflag &= ~CSTOPB; // 1 stop bit
-   options.c_cflag &= ~CRTSCTS; // no RTS/CTS Flow Control
-   options.c_cflag |= CREAD | CLOCAL; // Set local mode on
-   
-   options.c_lflag &= ~ECHO; // no echo
-   options.c_lflag &= ~ECHOE; // no echo
-   options.c_lflag &= ~ECHONL; // no echo
-   options.c_lflag &= ~ICANON;
-   options.c_lflag &= ~ISIG;
-
-   options.c_iflag = IGNBRK;
-   options.c_iflag &= ~(IXON | IXOFF ); // No software handshake
-   options.c_iflag |= IXANY;
-   options.c_iflag &= ~(IGNBRK|BRKINT|PARMRK|ISTRIP|INLCR|IGNCR|ICRNL); // Disable any special handling of received bytes
-
-   options.c_oflag &= ~OPOST; // Prevent special interpretation of output bytes (e.g. newline chars)
-   options.c_oflag &= ~ONLCR; // Prevent conversion of newline to carriage return/line feed 
-   */
+   else
+   {
+       if (hardware_serial_set_custom_baudrate(fPort, szDevName, baudRate) != 0)
+       {
+           close(fPort);
+           return -1;
+       }
+   }
 
    options.c_cflag &= ~CSIZE;
    options.c_cflag |= CS8; // Set 8 data bits
@@ -542,9 +551,6 @@ int hardware_open_serial_port(const char* szDevName, long baudRate)
    options.c_iflag = IGNBRK;
    options.c_iflag &= ~(IXON | IXOFF ); // No software handshake
    options.c_iflag |= IXANY;
-
-   //options.c_cc[VMIN] = 0;
-   //options.c_cc[VTIME] = 5;
 
    tcsetattr(fPort, TCSANOW, &options); //write options 
 
@@ -577,7 +583,6 @@ int hardware_serial_is_sik_radio(const char* szDevName)
    }
    return 0;
 }
-
 
 int hardware_serial_send_sik_command(int iSerialPortFD, const char* szCommand)
 {
