@@ -1,5 +1,20 @@
 # run: make all RUBY_BUILD_ENV=openipc/radxa/[empty](pi)
 
+INSTALL_DEPS := $(shell \
+    if [ "$(RUBY_BUILD_ENV)" = "radxa" ]; then \
+        echo "Installing dependencies for Radxa..." >&2; \
+        sudo apt-get update && sudo apt-get install -y libcairo2-dev libgpiod-dev libi2c-dev libdrm-dev; \
+		sudo apt-get install -y librockchip-mpp-dev; \
+        fi; \
+    elif [ "$(RUBY_BUILD_ENV)" = "openipc" ]; then \
+        echo "Installing dependencies for OpenIPC..." >&2; \
+        sudo apt-get update && sudo apt-get install -y libcairo2-dev libgpiod-dev libi2c-dev libdrm-dev; \
+    else \
+        echo "Installing dependencies for Raspberry Pi..." >&2; \
+        sudo apt-get update && sudo apt-get install -y libcairo2-dev libgpiod-dev libi2c-dev libdrm-dev librockchip-mpp-dev; \
+    fi \
+)
+
 _CFLAGS := $(CFLAGS) -Wall -Wno-stringop-truncation -Wno-format-truncation -O2 -fdata-sections -ffunction-sections
 _CPPFLAGS := $(CPPLAGS) -Wall -Wno-stringop-truncation -Wno-format-truncation -O2 -fdata-sections -ffunction-sections
 
