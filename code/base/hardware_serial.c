@@ -55,7 +55,7 @@
 #include "hw_procs.h"
 #include "../common/string_utils.h"
 
-int s_OptionsSerialBaudRatesC[] = { 1200, 2400, 4800, 9600, 19200, 38400, 57600, 115200, 100000 };
+int s_OptionsSerialBaudRatesC[] = { 1200, 2400, 4800, 9600, 19200, 38400, 57600, 115200, 420000 };
 
 int s_iHardwareSerialPortsWasInitialized = 0;
 
@@ -449,7 +449,7 @@ int hardware_configure_serial(const char* szDevName, long baudRate)
    tcgetattr(fPort, &options);
    cfmakeraw(&options);
 
-   if (baudRate != 100000) 
+   if (baudRate != 420000) 
    {
        switch(baudRate)
        {
@@ -518,7 +518,7 @@ int hardware_open_serial_port(const char* szDevName, long baudRate)
    cfmakeraw(&options);
 
    int iUsedDefaultRate = 0;
-   if (baudRate != 100000)
+   if (baudRate != 420000)
    {
        switch(baudRate)
        {
