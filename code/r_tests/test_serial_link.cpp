@@ -48,10 +48,10 @@ int main(int argc, char *argv[])
    log_init("TestSerialLink");
    log_enable_stdout();
 
-   if ( ! hardware_configure_serial("/dev/ttyUSB0", iSpeed) )
+   if ( ! hardware_configure_serial("/dev/serial0", iSpeed) )
       log_line("Failed to configure serial.");
 
-   iSerialPort = hardware_open_serial_port("/dev/ttyUSB0", iSpeed);
+   iSerialPort = hardware_open_serial_port("/dev/serial0", iSpeed);
    if ( -1 == iSerialPort )
       log_line("Failed to open serial port.");
 
@@ -61,66 +61,24 @@ int main(int argc, char *argv[])
    u8 bufferIn[1024];
    int iBufferSize = 1024;
 
-   hardware_serial_send_sik_command(iSerialPort, "+++");
-   log_line("Sent command.");
-   iBufferSize = 1024;
-   int iLen = hardware_serial_wait_sik_response(iSerialPort, 3000, 1, bufferIn, &iBufferSize);
-
-   if ( iLen <= 0 )
-   {
-      log_line("No response to command mode.exit.");
-      close(iSerialPort);
-      return 0;
-   }
-   bufferIn[iLen] = 0;
-   log_line("Recv: [%s]",(const char*)bufferIn);
-   if ( NULL == strstr((const char*)bufferIn, "OK") )
-   {
-      log_line("Failed to enter command mode.exit.");
-      close(iSerialPort);
-      return 0;
-   }
-
-   hardware_serial_send_sik_command(iSerialPort, "ATI");
-   log_line("Sent command.");
-   
-   iBufferSize = 1024;
-   iLen = hardware_serial_wait_sik_response(iSerialPort, 1000, 2, bufferIn, &iBufferSize);
-
-   if ( iLen > 0 )
-   {
-      bufferIn[iLen] = 0;
-      log_line("Recv: [%s]",(const char*)bufferIn);
-   }
-
-   hardware_serial_send_sik_command(iSerialPort, "ATO");
-   log_line("Sent command.");
-   
-   iBufferSize = 1024;
-   iLen = hardware_serial_wait_sik_response(iSerialPort, 1000, 2, bufferIn, &iBufferSize);
-
-   if ( iLen > 0 )
-   {
-      bufferIn[iLen] = 0;
-      log_line("Recv: [%s]",(const char*)bufferIn);
-   }
-
-   close(iSerialPort);
-   iSerialPort -1;
-   iSerialPort = hardware_open_serial_port("/dev/ttyUSB0", iSpeed);
-   
-   log_line("Reopened serial port. Waiting data.");
-
    while (!bQuit)
    {
 
       iBufferSize = 1024;
-      iLen = hardware_serial_wait_sik_response(iSerialPort, 10, 0, bufferIn, &iBufferSize);
+      int iLen = hardware_serial_wait_sik_response(iSerialPort, 10, 0, bufferIn, &iBufferSize);
       
       if ( iLen > 0 )
       {
          bufferIn[iLen] = 0;
-         log_line("Recv (%d): [%s]", iLen, (const char*)bufferIn);
+         char szHex[2048];
+         szHex[0] = 0;
+         for( int i=0; i<iLen; i++ )
+         {
+            char szTmp[8];
+            sprintf(szTmp, "%02X ", bufferIn[i]);
+            strcat(szHex, szTmp);
+         }
+         log_line("Recv (%d): [%s]", iLen, szHex);
       }
    }
 
