@@ -351,6 +351,10 @@ test_port_tx:$(FOLDER_TESTS)/test_port_tx.o $(MODULE_BASE) $(MODULE_BASE2) $(MOD
 test_link:$(FOLDER_TESTS)/test_link.o $(MODULE_BASE) $(MODULE_BASE2) $(MODULE_COMMON) $(MODULE_RADIO) $(MODULE_MODELS)
 	$(CXX) $(_CFLAGS) -o $@ $^ $(_LDFLAGS) -ldl -lc
 
+
+test_serial_link:$(FOLDER_TESTS)/test_serial_link.o $(MODULE_BASE) $(MODULE_BASE2) $(MODULE_COMMON) $(MODULE_RADIO) $(MODULE_MODELS)
+	$(CXX) $(_CFLAGS) -o $@ $^ $(_LDFLAGS) -ldl -lc
+
 clean:
 	rm -rf ruby_start ruby_i2c ruby_logger ruby_initdhcp ruby_sik_config ruby_alive ruby_video_proc ruby_update ruby_update_worker \
         ruby_tx_telemetry ruby_rt_vehicle \
