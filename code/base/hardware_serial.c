@@ -33,11 +33,13 @@
 #include <fcntl.h>        // serialport
 #define termios asmtermios
 #define winsize asmwinsize
+#define termio asmtermio
 #include <asm/termios.h>
-#include <asm/ioctl.h>
+#include <asm/ioctls.h>
 #undef  termios
 #undef  winsize
-#include <termios.h> 
+#undef  termio
+#include <termios.h>
 #include <sys/ioctl.h>
 #include <ctype.h>
 #include <stdio.h>
