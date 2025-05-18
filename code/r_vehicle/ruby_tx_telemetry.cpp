@@ -1364,7 +1364,19 @@ void check_open_datalink_serial_port()
    hardware_configure_serial(pPortInfo->szPortDeviceName, pPortInfo->lPortSpeed);
    
    log_line("Opening serial port %s (%s) for auxiliary data link (baud rate: %u) ...", pPortInfo->szName, pPortInfo->szPortDeviceName, (int)pPortInfo->lPortSpeed);
+
+
    s_iSerialDataLinkFileHandle = hardware_open_serial_port(pPortInfo->szPortDeviceName, pPortInfo->lPortSpeed);
+
+   if (pPortInfo->lPortSpeed == 420000 || pPortInfo->lPortSpeed == 100000) {
+         close(s_iSerialDataLinkFileHandle);
+
+         hardware_sleep_ms(1000);
+
+         s_iSerialDataLinkFileHandle = hardware_open_serial_port(pPortInfo->szPortDeviceName, pPortInfo->lPortSpeed);
+   }
+
+
    if ( -1 == s_iSerialDataLinkFileHandle )
       log_softerror_and_alarm("Failed to open serial port %s (%s) for auxiliary datalink.", pPortInfo->szName, pPortInfo->szPortDeviceName );
    else
