@@ -65,7 +65,7 @@ int main(int argc, char *argv[])
    {
 
       iBufferSize = 1024;
-      iLen = hardware_serial_wait_sik_response(iSerialPort, 10, 0, bufferIn, &iBufferSize);
+      int iLen = hardware_serial_wait_sik_response(iSerialPort, 10, 0, bufferIn, &iBufferSize);
       
       if ( iLen > 0 )
       {
