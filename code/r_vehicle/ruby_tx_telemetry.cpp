@@ -1368,7 +1368,7 @@ void check_open_datalink_serial_port()
 
    s_iSerialDataLinkFileHandle = hardware_open_serial_port(pPortInfo->szPortDeviceName, pPortInfo->lPortSpeed);
 
-   if (pPortInfo->lPortSpeed == 420000 || pPortInfo->lPortSpeed == 100000) {
+   if (pPortInfo->lPortSpeed == 100000) {
          close(s_iSerialDataLinkFileHandle);
 
          hardware_sleep_ms(1000);
