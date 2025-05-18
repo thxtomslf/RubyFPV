@@ -641,6 +641,7 @@ int r_start_vehicle(int argc, char *argv[])
       modelVehicle.saveToFile(szFile, false);
    }
 
+   #ifndef HW_PLATFORM_OPENIPC_CAMERA
    for( int i=0; i<modelVehicle.hardwareInterfacesInfo.serial_port_count; i++ )
    {
       if ( modelVehicle.hardwareInterfacesInfo.serial_port_supported_and_usage[i] & MODEL_SERIAL_PORT_BIT_SUPPORTED )
@@ -663,6 +664,7 @@ int r_start_vehicle(int argc, char *argv[])
          }
       }
    }
+   #endif
 
    #ifdef HW_PLATFORM_RASPBERRY
    hw_execute_ruby_process(NULL, "ruby_alive", NULL, NULL);
