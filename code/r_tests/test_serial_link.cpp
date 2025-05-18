@@ -48,10 +48,10 @@ int main(int argc, char *argv[])
    log_init("TestSerialLink");
    log_enable_stdout();
 
-   if ( ! hardware_configure_serial("/dev/ttyS0", iSpeed) )
+   if ( ! hardware_configure_serial("/dev/serial0", iSpeed) )
       log_line("Failed to configure serial.");
 
-   iSerialPort = hardware_open_serial_port("/dev/ttyS0", iSpeed);
+   iSerialPort = hardware_open_serial_port("/dev/serial0", iSpeed);
    if ( -1 == iSerialPort )
       log_line("Failed to open serial port.");
 
@@ -70,7 +70,15 @@ int main(int argc, char *argv[])
       if ( iLen > 0 )
       {
          bufferIn[iLen] = 0;
-         log_line("Recv (%d): [%s]", iLen, (const char*)bufferIn);
+         char szHex[2048];
+         szHex[0] = 0;
+         for( int i=0; i<iLen; i++ )
+         {
+            char szTmp[8];
+            sprintf(szTmp, "%02X ", bufferIn[i]);
+            strcat(szHex, szTmp);
+         }
+         log_line("Recv (%d): [%s]", iLen, szHex);
       }
    }
 
