@@ -34,7 +34,8 @@
 #define termios asmtermios
 #include <asm/termios.h>
 #undef  termios
-#include <termios.h>      // serialport
+#include <termios.h> 
+#include <sys/ioctl.h>
 #include <ctype.h>
 #include <stdio.h>
 #include <errno.h>
@@ -444,7 +445,7 @@ int hardware_configure_serial(const char* szDevName, long baudRate)
    cfmakeraw(&options);
 
    // For standard baud rates, use the traditional method
-   if (baudRate != 420000) 
+   if (baudRate > 115200) 
    {
        switch(baudRate)
        {
@@ -458,30 +459,27 @@ int hardware_configure_serial(const char* szDevName, long baudRate)
           case 115200: cfsetospeed(&options, B115200); break;
           default:    cfsetospeed(&options, B57600); break;
        }
+
+      options.c_cflag &= ~CSIZE;
+      options.c_cflag |= CS8; // Set 8 data bits
+      options.c_cflag &= ~PARENB; // Set no parity
+      options.c_cflag &= ~CSTOPB; // 1 stop bit
+      options.c_lflag &= ~ECHO; // no echo
+      options.c_cflag &= ~CRTSCTS; // no RTS/CTS Flow Control
+      options.c_cflag |= CLOCAL; // Set local mode on
+      
+      options.c_iflag = IGNBRK;
+      options.c_iflag &= ~(IXON | IXOFF ); // No software handshake
+      options.c_iflag |= IXANY;
+
+      tcsetattr(fPort, TCSANOW, &options); //write options 
    }
-   else
+   else if (hardware_serial_set_custom_baudrate(fPort, szDevName, baudRate) != 0)
    {
-       // For non-standard baud rates (like 420000), use the custom method
-       if (hardware_serial_set_custom_baudrate(fPort, szDevName, baudRate) != 0)
-       {
-           close(fPort);
-           return 0;
-       }
+      close(fPort);
+      return 0;
    }
 
-   options.c_cflag &= ~CSIZE;
-   options.c_cflag |= CS8; // Set 8 data bits
-   options.c_cflag &= ~PARENB; // Set no parity
-   options.c_cflag &= ~CSTOPB; // 1 stop bit
-   options.c_lflag &= ~ECHO; // no echo
-   options.c_cflag &= ~CRTSCTS; // no RTS/CTS Flow Control
-   options.c_cflag |= CLOCAL; // Set local mode on
-   
-   options.c_iflag = IGNBRK;
-   options.c_iflag &= ~(IXON | IXOFF ); // No software handshake
-   options.c_iflag |= IXANY;
-
-   tcsetattr(fPort, TCSANOW, &options); //write options 
    close(fPort);
    
    log_line("Configured serial port %s to baudrate %ld bps.", szDevName, baudRate);
@@ -516,7 +514,7 @@ int hardware_open_serial_port(const char* szDevName, long baudRate)
    cfmakeraw(&options);
 
    int iUsedDefaultRate = 0;
-   if (baudRate != 420000)
+   if (baudRate > 115200)
    {
        switch(baudRate)
        {
@@ -530,29 +528,26 @@ int hardware_open_serial_port(const char* szDevName, long baudRate)
           case 115200: cfsetospeed(&options, B115200); break;
           default:    cfsetospeed(&options, B57600); iUsedDefaultRate = 1; break;
        }
+
+         options.c_cflag &= ~CSIZE; 
+         options.c_cflag |= CS8; // Set 8 data bits
+         options.c_cflag &= ~PARENB; // Set no parity
+         options.c_cflag &= ~CSTOPB; // 1 stop bit
+         options.c_lflag &= ~ECHO; // no echo
+         options.c_cflag &= ~CRTSCTS; // no RTS/CTS Flow Control
+         options.c_cflag |= CLOCAL; // Set local mode on
+         
+         options.c_iflag = IGNBRK;
+         options.c_iflag &= ~(IXON | IXOFF ); // No software handshake
+         options.c_iflag |= IXANY;
+
+         tcsetattr(fPort, TCSANOW, &options); //write options 
    }
-   else
-   {
-       if (hardware_serial_set_custom_baudrate(fPort, szDevName, baudRate) != 0)
-       {
-           close(fPort);
-           return -1;
-       }
+   else if (hardware_serial_set_custom_baudrate(fPort, szDevName, baudRate) != 0) {
+      close(fPort);
+      return -1;
    }
 
-   options.c_cflag &= ~CSIZE;
-   options.c_cflag |= CS8; // Set 8 data bits
-   options.c_cflag &= ~PARENB; // Set no parity
-   options.c_cflag &= ~CSTOPB; // 1 stop bit
-   options.c_lflag &= ~ECHO; // no echo
-   options.c_cflag &= ~CRTSCTS; // no RTS/CTS Flow Control
-   options.c_cflag |= CLOCAL; // Set local mode on
-   
-   options.c_iflag = IGNBRK;
-   options.c_iflag &= ~(IXON | IXOFF ); // No software handshake
-   options.c_iflag |= IXANY;
-
-   tcsetattr(fPort, TCSANOW, &options); //write options 
 
    if ( iUsedDefaultRate )
       log_line("[HardwareSerial]: Opened serial port %s with default baudrate %ld bps (%ld bps was invalid). fd=%d", szDevName, 57600, baudRate, fPort);
