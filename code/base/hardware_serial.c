@@ -450,7 +450,7 @@ int hardware_configure_serial(const char* szDevName, long baudRate)
    cfmakeraw(&options);
 
    // For standard baud rates, use the traditional method
-   if (baudRate > 115200) 
+   if (baudRate <= 115200) 
    {
        switch(baudRate)
        {
@@ -519,7 +519,7 @@ int hardware_open_serial_port(const char* szDevName, long baudRate)
    cfmakeraw(&options);
 
    int iUsedDefaultRate = 0;
-   if (baudRate > 115200)
+   if (baudRate <= 115200)
    {
        switch(baudRate)
        {
